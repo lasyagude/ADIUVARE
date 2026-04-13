@@ -7,6 +7,11 @@ from .core.events import EventHooks
 from .core.models import RequestContext
 from .core.pipeline import Pipeline
 from .policies import BUILTIN_POLICIES
+from .signals.behavior import BehaviorSignal
+from .signals.context import ContextSignal
+from .signals.identity import IdentitySignal
+from .signals.ip_rep import IPRepSignal
+from .signals.payload import PayloadSignal
 from .state.identity_store import IdentityStore
 
 
@@ -20,7 +25,14 @@ class Guard:
         self._cfg = load_config(config_path, preset=preset)
         self._cfg_snap = build_snapshot(self._cfg)
         self._id_store = IdentityStore()
-        self._pipeline = Pipeline(self._id_store, soft_signals=soft_signals)
+        sigs = soft_signals or [
+            PayloadSignal(),
+            BehaviorSignal(self._id_store),
+            IdentitySignal(self._id_store),
+            ContextSignal(),
+            IPRepSignal(),
+        ]
+        self._pipeline = Pipeline(self._id_store, soft_signals=sigs)
         self._hooks = EventHooks()
         self.policies = dict(BUILTIN_POLICIES)
         self._route_cfg: dict[str, Any] = {}

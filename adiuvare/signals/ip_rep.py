@@ -1,0 +1,35 @@
+import ipaddress
+
+from ..core.models import RequestContext, SignalResult
+from .base import SoftSignal
+
+_noisy_nets = (
+    "185.220.",
+    "45.155.",
+    "198.51.100.",
+    "203.0.113.",
+)
+
+
+class IPRepSignal(SoftSignal):
+    name = "ip_rep"
+    weight = 0.05
+
+    async def extract(self, ctx: RequestContext) -> SignalResult:
+        try:
+            ip = ipaddress.ip_address(ctx.ip)
+        except ValueError:
+            return SignalResult(score=0.12, reason="ip_parse_err")
+
+        if ip.is_loopback or ip.is_private:
+            return SignalResult(score=0.0, reason="ip_local")
+
+        raw = str(ip)
+        if ctx.headers.get("x-tor-exit") == "1":
+            return SignalResult(score=0.35, reason="tor_hint", detail={"ip": raw})
+
+        for prefix in _noisy_nets:
+            if raw.startswith(prefix):
+                return SignalResult(score=0.20, reason="noisy_net", detail={"ip": raw})
+
+        return SignalResult(score=0.0, reason="ip_clean")

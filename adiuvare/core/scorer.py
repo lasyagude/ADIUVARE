@@ -4,6 +4,8 @@ _weights = {
     "payload": 0.40,
     "behavior": 0.35,
     "identity": 0.25,
+    "context": 0.10,
+    "ip_rep": 0.05,
 }
 
 
@@ -12,13 +14,11 @@ def compute_score(sig_res: dict[str, SignalResult], snap=None) -> tuple[float, d
     total = 0.0
     active = 0
 
-    weights = _weights
+    weights = dict(_weights)
     if snap:
-        weights = {
-            "payload": snap.payload_weight,
-            "behavior": snap.behavior_weight,
-            "identity": snap.identity_weight,
-        }
+        weights["payload"] = snap.payload_weight
+        weights["behavior"] = snap.behavior_weight
+        weights["identity"] = snap.identity_weight
 
     for name, res in sig_res.items():
         weight = weights.get(name, 0.0)
