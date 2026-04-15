@@ -42,3 +42,4 @@ class AdiuvareEvent:
     score: float
     verdict: str
     breakdown: dict[str, float]
+    detail: dict[str, Any] = field(default_factory=dict)
