@@ -1,0 +1,104 @@
+Screen {
+    background: #10131a;
+    color: #e7ecf2;
+}
+
+#app-shell {
+    layout: vertical;
+    height: 100%;
+}
+
+#top-bar {
+    height: 3;
+    padding: 0 1;
+    background: #151a24;
+    border-bottom: solid #2a3242;
+    content-align: center middle;
+}
+
+#brand {
+    width: 24;
+    color: #58a6ff;
+    text-style: bold;
+}
+
+#tab-strip {
+    height: 3;
+    width: 1fr;
+}
+
+.tab-btn {
+    margin-right: 1;
+    min-width: 11;
+}
+
+.tab-btn.-active {
+    background: #20304d;
+    color: #e7ecf2;
+}
+
+#body-switcher {
+    height: 1fr;
+}
+
+#app-footer {
+    height: 3;
+    padding: 0 1;
+    background: #151a24;
+    border-top: solid #2a3242;
+}
+
+#footer-shortcuts {
+    width: 1fr;
+    color: #8a95a8;
+}
+
+#footer-status {
+    width: 42;
+    color: #8a95a8;
+    content-align: right middle;
+}
+
+#monitor-shell {
+    height: 100%;
+    padding: 1;
+}
+
+.monitor-main {
+    width: 2fr;
+    margin-right: 1;
+}
+
+.monitor-side {
+    width: 1fr;
+}
+
+#monitor-title {
+    height: 1;
+    margin-bottom: 1;
+    color: #58a6ff;
+    text-style: bold;
+}
+
+#monitor-stream,
+#runtime-snapshot,
+#runtime-counts,
+#placeholder-copy {
+    border: solid #2a3242;
+    background: #151a24;
+    padding: 1;
+}
+
+#runtime-snapshot {
+    height: 10;
+    margin-bottom: 1;
+}
+
+#runtime-counts {
+    height: 9;
+}
+
+#placeholder-copy {
+    margin: 1;
+}
+
