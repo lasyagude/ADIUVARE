@@ -19,6 +19,7 @@ class SignalsScreen(WorkspaceView):
             with Vertical(classes="monitor-side"):
                 yield SignalChart(id="signals-chart")
                 yield Static("", id="signals-copy")
+                yield Static("", id="signals-runtime")
 
     def on_mount(self) -> None:
         table = self.query_one("#signals-table", DataTable)
@@ -51,7 +52,23 @@ class SignalsScreen(WorkspaceView):
         self.query_one("#signals-copy", Static).update(
             f"registered signals: {len(totals)}\nrecent rows scanned: {len(rows)}"
         )
+        self.query_one("#signals-runtime", Static).update(self._runtime_copy())
 
     def _app(self):
         return cast("AdiuvareApp", self.app)
 
+    def _runtime_copy(self) -> str:
+        cfg = self._app().config
+        snap = self._app().runtime_snapshot()
+        lines = [
+            "runtime mix",
+            f"strictness: {cfg.meta.strictness}",
+            f"ai mode: {cfg.ai.mode}",
+            f"backend: {snap.get('backend', 'sqlite')}",
+            "",
+            "thresholds",
+            f"flag: {cfg.thresholds.flag:.2f}",
+            f"throttle: {cfg.thresholds.throttle:.2f}",
+            f"block: {cfg.thresholds.block:.2f}",
+        ]
+        return "\n".join(lines)

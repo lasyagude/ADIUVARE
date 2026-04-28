@@ -85,6 +85,10 @@ Screen {
     height: 1fr;
 }
 
+#cfg-shell {
+    height: 1fr;
+}
+
 #monitor-title {
     height: 1;
     margin-bottom: 1;
@@ -136,13 +140,27 @@ Screen {
 }
 
 #events-detail,
-#audit-detail {
+#audit-detail,
+#audit-metadata,
+#cfg-summary,
+#cfg-runtime,
+#cfg-weights,
+#cfg-history,
+#signals-runtime,
+#analyst-status {
     height: 1fr;
     margin-bottom: 1;
 }
 
 #events-note-input {
     margin-bottom: 1;
+}
+
+#cfg-title {
+    height: 1;
+    margin-bottom: 1;
+    color: #58a6ff;
+    text-style: bold;
 }
 
 #placeholder-copy {

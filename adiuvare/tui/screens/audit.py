@@ -32,12 +32,13 @@ class AuditScreen(WorkspaceView):
                     yield DataTable(id="audit-table")
                 with Vertical(classes="monitor-side"):
                     yield EventDetail(id="audit-detail")
+                    yield Static("", id="audit-metadata")
                     yield Static("", id="audit-summary")
 
     def on_mount(self) -> None:
         table = self.query_one("#audit-table", DataTable)
         table.cursor_type = "row"
-        table.add_columns("verdict", "identity", "endpoint")
+        table.add_columns("verdict", "identity", "endpoint", "top")
         self.refresh_view()
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -62,6 +63,7 @@ class AuditScreen(WorkspaceView):
         if 0 <= event.cursor_row < len(self._rows):
             self._selected = self._rows[event.cursor_row]
             self.query_one("#audit-detail", EventDetail).show_event(self._selected)
+            self._render_meta()
 
     def action_export_jsonl(self) -> None:
         out = Path("adiuvare_audit_export.jsonl")
@@ -81,13 +83,19 @@ class AuditScreen(WorkspaceView):
         table = self.query_one("#audit-table", DataTable)
         table.clear(columns=False)
         for row in rows:
+            breakdown = row.get("breakdown") or {}
+            top = "-"
+            if isinstance(breakdown, dict) and breakdown:
+                top = str(max(breakdown, key=breakdown.get))
             table.add_row(
                 str(row.get("verdict", "allow")),
                 str(row.get("identity", "?"))[:20],
                 str(row.get("endpoint", "?"))[:26],
+                top[:10],
             )
         self._selected = rows[0] if rows else None
         self.query_one("#audit-detail", EventDetail).show_event(self._selected)
+        self._render_meta()
         self.query_one("#audit-summary", Static).update(f"showing {len(rows)} audit rows")
         self.query_one("#audit-toolbar-copy", Static).update(f"{len(rows)} of {len(base_rows)}")
 
@@ -99,3 +107,27 @@ class AuditScreen(WorkspaceView):
             self.query_one(f"#{field}", Input).value.strip()
             for field in ("audit-identity-filter", "audit-verdict-filter")
         )
+
+    def _render_meta(self) -> None:
+        if not self._selected:
+            self.query_one("#audit-metadata", Static).update("context\nselect a row to inspect")
+            return
+
+        detail = self._selected.get("detail") or {}
+        lines = [
+            "context",
+            f"identity: {self._selected.get('identity', '?')}",
+            f"endpoint: {self._selected.get('endpoint', '?')}",
+            f"verdict: {self._selected.get('verdict', 'allow')}",
+        ]
+        if isinstance(detail, dict) and detail:
+            ai = detail.get("ai")
+            if isinstance(ai, dict) and ai:
+                lines.append(f"ai verdict: {ai.get('verdict', 'n/a')}")
+            note = detail.get("note")
+            if note:
+                lines.append(f"note: {note}")
+            lines.append("")
+            lines.append("detail keys")
+            lines.extend(f"- {key}" for key in sorted(detail.keys()))
+        self.query_one("#audit-metadata", Static).update("\n".join(lines))

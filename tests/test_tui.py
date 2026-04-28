@@ -209,6 +209,18 @@ async def test_config_save_updates_yaml(app):
 
 
 @pytest.mark.asyncio
+async def test_connected_config_save_sends_runtime_patch(connected_app):
+    async with connected_app.run_test() as pilot:
+        await pilot.press("3")
+        connected_app.query_one("#cfg-block").value = "0.73"
+        connected_app.query_one("#cfg-ai").value = "assist"
+        await pilot.click("#cfg-save")
+        await pilot.pause()
+
+    assert ("patch_config", {"block_threshold": 0.73, "observe_only": False, "ai_mode": "assist"}) in connected_app._test_calls
+
+
+@pytest.mark.asyncio
 async def test_analyst_ask_updates_output(app):
     app.audit.write(
         AdiuvareEvent(

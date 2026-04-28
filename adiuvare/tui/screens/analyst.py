@@ -15,6 +15,7 @@ class AnalystScreen(WorkspaceView):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("ai analyst")
+            yield Static("", id="analyst-status")
             yield Static("", id="analyst-report")
             with Horizontal():
                 yield Input(id="ask-input", placeholder="ask about the recent audit rows")
@@ -40,6 +41,17 @@ class AnalystScreen(WorkspaceView):
             detail = row.get("detail") or {}
             if isinstance(detail, dict) and detail.get("ai"):
                 ai_rows += 1
+        snap = self._app().runtime_snapshot()
+        self.query_one("#analyst-status", Static).update(
+            "\n".join(
+                [
+                    f"ai mode: {snap.get('ai_mode', 'off')}",
+                    f"ai enabled: {bool(snap.get('ai_enabled', False))}",
+                    f"model: {snap.get('ai_model', 'n/a')}",
+                    f"live link: {bool(snap.get('connected', False))}",
+                ]
+            )
+        )
         self.query_one("#analyst-report", Static).update(
             "\n".join(
                 [
@@ -58,10 +70,14 @@ class AnalystScreen(WorkspaceView):
         rows = self._app().recent_rows(20)
         top = Counter(str(row.get("identity", "?")) for row in rows).most_common(1)
         lead = top[0][0] if top else "none"
+        snap = self._app().runtime_snapshot()
         self.query_one("#ask-output", Static).update(
-            f"Q: {prompt or '...'}\nlead identity: {lead}\nrows scanned: {len(rows)}"
+            f"Q: {prompt or '...'}\n"
+            f"lead identity: {lead}\n"
+            f"rows scanned: {len(rows)}\n"
+            f"ai mode: {snap.get('ai_mode', 'off')}\n"
+            f"model: {snap.get('ai_model', 'n/a')}"
         )
 
     def _app(self):
         return cast("AdiuvareApp", self.app)
-

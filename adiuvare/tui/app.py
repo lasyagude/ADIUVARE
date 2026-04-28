@@ -142,6 +142,9 @@ class AdiuvareApp(App[None]):
         self.config = load_config(path)
         self._watcher = ConfigWatcher(path)
         self.audit.write_patch("patch_config", changes)
+        runtime_patch = self._runtime_patch(changes)
+        if self.connected and runtime_patch:
+            self.run_worker(self._send_command("patch_config", runtime_patch), exclusive=False)
 
     def mark_note(self, identity: str, note: str) -> None:
         if self.connected:
@@ -223,3 +226,16 @@ class AdiuvareApp(App[None]):
                 self._active_page().refresh_view()
         except Exception:
             self.set_footer_status("stream link dropped")
+
+    def _runtime_patch(self, changes: dict) -> dict:
+        patch = {}
+        thresholds = changes.get("thresholds") or {}
+        runtime = changes.get("runtime") or {}
+        ai = changes.get("ai") or {}
+        if "block" in thresholds:
+            patch["block_threshold"] = thresholds["block"]
+        if "observe_only" in runtime:
+            patch["observe_only"] = runtime["observe_only"]
+        if "mode" in ai:
+            patch["ai_mode"] = ai["mode"]
+        return patch
