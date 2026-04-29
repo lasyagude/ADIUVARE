@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pytest
 
-from adiuvare.config import SignalWeights, Thresholds, build_snapshot, load_config
+from adiuvare.config import SignalWeights, Thresholds, build_snapshot, find_config_file, load_config
 from adiuvare.config.schema import AdiuvareConfig, PRESETS
 
 
@@ -55,7 +57,70 @@ weights:
     assert cfg.runtime.observe_only is True
 
 
-def test_load_config_applies_env_overrides(monkeypatch):
+def test_load_config_uses_nearest_parent_file(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    child = root / "service" / "api"
+    child.mkdir(parents=True)
+    cfg_path = root / "adiuvare.yaml"
+    cfg_path.write_text(
+        """
+meta:
+  framework: flask
+runtime:
+  backend: redis
+""",
+        encoding="utf-8",
+    )
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.chdir(child)
+    monkeypatch.setattr("adiuvare.config.loader.Path.home", lambda: home)
+
+    cfg = load_config()
+    assert cfg.meta.framework == "flask"
+    assert cfg.runtime.backend == "redis"
+
+
+def test_find_config_file_prefers_env_override(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    child = project / "svc"
+    child.mkdir(parents=True)
+    (project / "adiuvare.yaml").write_text("meta:\n  framework: flask\n", encoding="utf-8")
+    env_cfg = tmp_path / "custom" / "adiuvare.yaml"
+    env_cfg.parent.mkdir(parents=True)
+    env_cfg.write_text("meta:\n  framework: django\n", encoding="utf-8")
+
+    monkeypatch.chdir(child)
+    monkeypatch.setenv("ADIUVARE_CONFIG", str(env_cfg))
+
+    assert find_config_file() == env_cfg
+
+
+def test_find_config_file_uses_home_fallback(tmp_path, monkeypatch):
+    cwd = tmp_path / "project" / "svc"
+    cwd.mkdir(parents=True)
+    home = tmp_path / "home"
+    home.mkdir()
+    home_cfg = home / "adiuvare.yaml"
+    home_cfg.write_text("meta:\n  framework: django\n", encoding="utf-8")
+
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr("adiuvare.config.loader.Path.home", lambda: home)
+
+    assert find_config_file() == home_cfg
+
+
+def test_load_config_raises_for_missing_explicit_path(tmp_path):
+    missing = tmp_path / "missing.yaml"
+    with pytest.raises(FileNotFoundError):
+        load_config(missing)
+
+
+def test_load_config_applies_env_overrides(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("adiuvare.config.loader.Path.home", lambda: home)
     monkeypatch.setenv("ADIUVARE_AI_MODE", "assist")
     monkeypatch.setenv("ADIUVARE_OLLAMA_URL", "http://127.0.0.1:9000")
     monkeypatch.setenv("ADIUVARE_REDIS_URL", "redis://127.0.0.1:6379/0")

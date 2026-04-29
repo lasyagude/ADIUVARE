@@ -66,7 +66,7 @@ class SetupWizardApp(App[None]):
                 with Horizontal(classes="wiz-row"):
                     yield Static("Framework", classes="wiz-label")
                     yield Select(
-                        [("FastAPI", "fastapi"), ("Flask", "flask"), ("Django", "django"), ("Other", "other")],
+                        [("FastAPI", "fastapi"), ("Flask", "flask"), ("Django", "django")],
                         allow_blank=False,
                         value="fastapi",
                         id="wiz-framework",

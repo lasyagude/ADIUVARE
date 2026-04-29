@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from adiuvare.config.editor import merge_sections, starter_config
-from adiuvare.config.loader import load_config
+from adiuvare.config.loader import find_config_file, load_config
 from adiuvare.state.audit_log import AuditLog
 from adiuvare.state.event_stream import EventStreamClient
 
@@ -74,6 +74,15 @@ def _run_init(path: Path, no_tui: bool) -> None:
         if answer != "y":
             print("aborted")
             return
+    else:
+        parent_cfg = find_config_file(dest.parent, include_home=False, use_env=False)
+        if parent_cfg is not None and parent_cfg != dest:
+            answer = input(
+                f"found existing config at {parent_cfg} - create another one at {dest}? [y/N] "
+            ).strip().lower()
+            if answer != "y":
+                print("aborted")
+                return
     if no_tui:
         _plain_terminal_wizard(dest)
         return
@@ -86,7 +95,7 @@ def _run_init(path: Path, no_tui: bool) -> None:
 
 
 def _plain_terminal_wizard(dest: Path) -> None:
-    framework = _ask("Framework?", ["fastapi", "flask", "django", "other"], "fastapi")
+    framework = _ask("Framework?", ["fastapi", "flask", "django"], "fastapi")
     instances = _ask("Instances?", ["single", "multi"], "single")
     strictness = _ask("Strictness?", ["public", "internal", "critical"], "internal")
     mode = _ask("Mode?", ["observe", "enforce"], "observe")
@@ -187,12 +196,7 @@ def _run_report(save: bool = False) -> None:
 
 
 def _find_cfg() -> Path | None:
-    here = Path.cwd()
-    for base in [here, *here.parents]:
-        cand = base / "adiuvare.yaml"
-        if cand.exists():
-            return cand
-    return None
+    return find_config_file()
 
 
 def _must_cfg() -> Path:

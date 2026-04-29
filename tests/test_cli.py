@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from cli import _find_socket, _open_tui, _plain_terminal_wizard, _run_config_set, _run_init, _run_logs, _run_status
+from cli import _find_cfg, _find_socket, _open_tui, _plain_terminal_wizard, _run_config_set, _run_init, _run_logs, _run_status
 from adiuvare.core.models import AdiuvareEvent
 from adiuvare.state.audit_log import AuditLog
 
@@ -91,6 +91,20 @@ def test_run_init_keeps_existing_file_when_user_declines(tmp_path, monkeypatch, 
     assert "aborted" in capsys.readouterr().out
 
 
+def test_run_init_warns_before_creating_nested_config(tmp_path, monkeypatch, capsys):
+    root_cfg = tmp_path / "adiuvare.yaml"
+    root_cfg.write_text("meta:\n  framework: fastapi\n", encoding="utf-8")
+    nested = tmp_path / "service" / "adiuvare.yaml"
+    nested.parent.mkdir(parents=True)
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "n")
+    _run_init(nested, no_tui=True)
+
+    assert not nested.exists()
+    out = capsys.readouterr().out
+    assert "found existing config" in out or "aborted" in out
+
+
 def test_find_socket_picks_newest_marker(tmp_path, monkeypatch):
     older = tmp_path / "adiuvare-old.sock"
     older.write_text("{}", encoding="utf-8")
@@ -100,6 +114,19 @@ def test_find_socket_picks_newest_marker(tmp_path, monkeypatch):
 
     monkeypatch.setattr("cli.tempfile.gettempdir", lambda: str(tmp_path))
     assert _find_socket() == str(newer)
+
+
+def test_find_cfg_prefers_env_override(tmp_path, monkeypatch):
+    local = tmp_path / "adiuvare.yaml"
+    local.write_text("meta:\n  framework: fastapi\n", encoding="utf-8")
+    custom = tmp_path / "custom" / "adiuvare.yaml"
+    custom.parent.mkdir(parents=True)
+    custom.write_text("meta:\n  framework: django\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ADIUVARE_CONFIG", str(custom))
+
+    assert _find_cfg() == custom
 
 
 def test_run_status_uses_runtime_snapshot_when_socket_is_live(tmp_path, monkeypatch, capsys):
