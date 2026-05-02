@@ -29,6 +29,8 @@ def test_adiuvare_config_builds_with_runtime_and_ai():
     cfg = AdiuvareConfig()
     assert cfg.runtime.backend == "sqlite"
     assert cfg.runtime.audit_db_path == ".adiuvare/audit.db"
+    assert cfg.runtime.monitored_window == 20
+    assert cfg.runtime.monitored_multiplier == 1.2
     assert cfg.ai.mode == "off"
     assert cfg.ai.base_url == "http://127.0.0.1:11434"
     assert cfg.ai.api_key is None
@@ -48,6 +50,8 @@ def test_load_config_reads_yaml(tmp_path):
 runtime:
   backend: redis
   observe_only: true
+  monitored_window: 12
+  monitored_multiplier: 1.5
 weights:
   payload: 0.50
 """
@@ -57,6 +61,8 @@ weights:
     assert cfg.runtime.backend == "redis"
     assert cfg.weights.payload == 0.50
     assert cfg.runtime.observe_only is True
+    assert cfg.runtime.monitored_window == 12
+    assert cfg.runtime.monitored_multiplier == 1.5
 
 
 def test_load_config_uses_nearest_parent_file(tmp_path, monkeypatch):

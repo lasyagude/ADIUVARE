@@ -27,6 +27,8 @@ class RuntimeConfig(BaseModel):
     state_db_path: str = ".adiuvare/state.db"
     redis_url: str | None = None
     observe_only: bool = False
+    monitored_window: int = Field(default=20, ge=1, le=1000)
+    monitored_multiplier: float = Field(default=1.2, ge=1.0, le=5.0)
 
 
 class AiConfig(BaseModel):

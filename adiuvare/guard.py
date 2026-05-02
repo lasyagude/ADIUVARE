@@ -269,6 +269,11 @@ class Guard:
             "hard_sigs": [sig.name for sig in self._hard_sigs],
             "whitelist_size": len(self._wl._ids),
             "banned_ip_count": len(self._wl._banned_ips),
+            "monitored_identity_count": sum(
+                1 for _identity, win in self._id_store.items() if win.monitored_remaining > 0
+            ),
+            "monitored_window": self._cfg.runtime.monitored_window,
+            "monitored_multiplier": self._cfg.runtime.monitored_multiplier,
             "recent_events": len(recent),
             "state_db": str(self._state_DBpath),
             "audit_db": self._cfg.runtime.audit_db_path,
@@ -290,6 +295,7 @@ class Guard:
         if name == "unblock_whitelist":
             identity = str(args["identity"])
             self._id_store.clear_block(identity)
+            self._id_store.clear_monitored(identity)
             self._wl.add(identity)
             self._audit.write_patch("unblock_whitelist", {"identity": identity})
             self.checkpoint()
@@ -300,6 +306,70 @@ class Guard:
             identity = str(args.get("identity", ""))
             self._audit.write_patch("unblock_note", {"identity": identity, "note": note})
             return {"ok": True, "identity": identity}
+
+        if name == "monitor_identity":
+            identity = str(args["identity"])
+            requests = int(args.get("requests", self._cfg.runtime.monitored_window))
+            multiplier = float(args.get("multiplier", self._cfg.runtime.monitored_multiplier))
+            win = self._id_store.set_monitored(
+                identity,
+                requests=requests,
+                multiplier=multiplier,
+            )
+            self._audit.write_patch(
+                "monitor_identity",
+                {
+                    "identity": identity,
+                    "requests": requests,
+                    "multiplier": multiplier,
+                },
+            )
+            self.checkpoint()
+            return {
+                "ok": True,
+                "identity": identity,
+                "monitored": True,
+                "requests": win.monitored_remaining,
+                "multiplier": win.monitored_multiplier,
+            }
+
+        if name == "unmonitor_identity":
+            identity = str(args["identity"])
+            self._id_store.clear_monitored(identity)
+            self._audit.write_patch("unmonitor_identity", {"identity": identity})
+            self.checkpoint()
+            return {
+                "ok": True,
+                "identity": identity,
+                "monitored": False,
+            }
+
+        if name == "unblock_monitor":
+            identity = str(args["identity"])
+            requests = int(args.get("requests", self._cfg.runtime.monitored_window))
+            multiplier = float(args.get("multiplier", self._cfg.runtime.monitored_multiplier))
+            self._id_store.clear_block(identity)
+            win = self._id_store.set_monitored(
+                identity,
+                requests=requests,
+                multiplier=multiplier,
+            )
+            self._audit.write_patch(
+                "unblock_monitor",
+                {
+                    "identity": identity,
+                    "requests": requests,
+                    "multiplier": multiplier,
+                },
+            )
+            self.checkpoint()
+            return {
+                "ok": True,
+                "identity": identity,
+                "monitored": True,
+                "requests": win.monitored_remaining,
+                "multiplier": win.monitored_multiplier,
+            }
 
         if name == "ban_ip":
             ip = str(args["ip"])

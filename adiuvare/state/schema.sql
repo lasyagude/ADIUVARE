@@ -13,7 +13,9 @@ create table if not exists identity_state (
     identity text primary key,
     seen integer not null,
     score_ewma real not null,
-    blocked_until real not null
+    blocked_until real not null,
+    monitored_remaining integer not null default 0,
+    monitored_multiplier real not null default 1.0
 );
 
 create table if not exists whitelist_state (

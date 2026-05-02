@@ -111,3 +111,35 @@ def test_pipeline_repeats_pick_up_identity_state():
     assert second is not None
     assert second.score > first.score
     assert store.get("u1").score_ewma < second.score
+
+
+def test_pipeline_monitored_identity_gets_multiplier_and_consumes_window():
+    monitored_store = IdentityStore()
+    plain_store = IdentityStore()
+    monitored_win = monitored_store.get("u1")
+    monitored_win.score_ewma = 0.4
+    monitored_store.update("u1", monitored_win)
+    plain_win = plain_store.get("u1")
+    plain_win.score_ewma = 0.4
+    plain_store.update("u1", plain_win)
+    monitored_store.set_monitored("u1", requests=2, multiplier=1.5)
+    ctx = RequestContext(
+        identity="u1",
+        payload="select * from users",
+        url="/login",
+        method="POST",
+        headers={"User-Agent": "Mozilla/5.0"},
+        ip="127.0.0.1",
+        endpoint="/login",
+    )
+
+    _, monitored_first = asyncio.run(Pipeline(monitored_store).process(ctx))
+    _, plain_first = asyncio.run(Pipeline(plain_store).process(ctx))
+    _, monitored_second = asyncio.run(Pipeline(monitored_store).process(ctx))
+
+    assert monitored_first is not None
+    assert plain_first is not None
+    assert monitored_second is not None
+    assert monitored_first.score > plain_first.score
+    assert monitored_store.get("u1").monitored_remaining == 0
+    assert monitored_store.get("u1").monitored_multiplier == 1.0

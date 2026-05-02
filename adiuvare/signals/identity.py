@@ -17,7 +17,20 @@ class IdentitySignal(SoftSignal):
         if win.seen > 10:
             score = min(1.0, score + 0.10)
 
+        detail = {}
+        monitored = win.monitored_remaining > 0
+        if monitored:
+            score = min(1.0, score * win.monitored_multiplier)
+            detail = {
+                "monitored_remaining": win.monitored_remaining,
+                "monitored_multiplier": win.monitored_multiplier,
+            }
+
         if score == 0.0:
             return SignalResult(score=0.0, reason="identity_clean")
 
-        return SignalResult(score=score, reason="identity_flag")
+        return SignalResult(
+            score=score,
+            reason="identity_monitored" if monitored else "identity_flag",
+            detail=detail,
+        )

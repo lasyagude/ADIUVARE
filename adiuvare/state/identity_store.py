@@ -10,6 +10,8 @@ class IdentityWindow:
     seen: int = 0
     score_ewma: float = 0.0
     blocked_until: float = 0.0
+    monitored_remaining: int = 0
+    monitored_multiplier: float = 1.0
 
 
 class IdentityStore:
@@ -75,8 +77,35 @@ class IdentityStore:
             win.score_ewma = score
         else:
             win.score_ewma = (win.score_ewma * (1 - alpha)) + (score * alpha)
+        if win.monitored_remaining > 0:
+            win.monitored_remaining = max(0, win.monitored_remaining - 1)
+            if win.monitored_remaining == 0:
+                win.monitored_multiplier = 1.0
         self.update(identity, win)
         return win
+
+    def set_monitored(
+        self,
+        identity: str,
+        requests: int = 20,
+        multiplier: float = 1.2,
+    ) -> IdentityWindow:
+        win = self.get(identity)
+        win.monitored_remaining = max(0, int(requests))
+        win.monitored_multiplier = max(1.0, float(multiplier))
+        self.update(identity, win)
+        return win
+
+    def clear_monitored(self, identity: str) -> IdentityWindow:
+        win = self.get(identity)
+        win.monitored_remaining = 0
+        win.monitored_multiplier = 1.0
+        self.update(identity, win)
+        return win
+
+    def is_monitored(self, identity: str) -> bool:
+        win = self.get(identity)
+        return win.monitored_remaining > 0
 
 
 class ThreadSafeIdentityStore(IdentityStore):

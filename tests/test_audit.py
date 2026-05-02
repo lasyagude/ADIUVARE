@@ -46,6 +46,8 @@ def test_state_checkpoint_writes_identity_window(tmp_path):
     win = store.get("u1")
     win.seen = 3
     win.score_ewma = 0.42
+    win.monitored_remaining = 7
+    win.monitored_multiplier = 1.4
     store.update("u1", win)
 
     init_state_db(db_path)
@@ -53,10 +55,18 @@ def test_state_checkpoint_writes_identity_window(tmp_path):
 
     with sqlite3.connect(db_path) as conn:
         row = conn.execute(
-            "select identity, seen, score_ewma from identity_state"
+            """
+            select
+                identity,
+                seen,
+                score_ewma,
+                monitored_remaining,
+                monitored_multiplier
+            from identity_state
+            """
         ).fetchone()
 
-    assert row == ("u1", 3, 0.42)
+    assert row == ("u1", 3, 0.42, 7, 1.4)
 
 
 def test_audit_log_query_helpers_work(tmp_path):
@@ -142,6 +152,34 @@ def test_guard_stream_command_path_updates_runtime_state(tmp_path):
     assert allow["ok"] is True
     assert guard.whitelist.allows("u1") is True
 
+    monitored = asyncio.run(
+        guard.event_stream.command(
+            "monitor_identity",
+            {"identity": "u2", "requests": 6, "multiplier": 1.3},
+        )
+    )
+    assert monitored["ok"] is True
+    assert monitored["monitored"] is True
+    assert guard._id_store.get("u2").monitored_remaining == 6
+
+    unblocked = asyncio.run(
+        guard.event_stream.command(
+            "unblock_monitor",
+            {"identity": "u3", "requests": 4, "multiplier": 1.4},
+        )
+    )
+    assert unblocked["ok"] is True
+    assert guard._id_store.get("u3").monitored_remaining == 4
+
+    cleared = asyncio.run(
+        guard.event_stream.command(
+            "unmonitor_identity",
+            {"identity": "u3"},
+        )
+    )
+    assert cleared["ok"] is True
+    assert guard._id_store.get("u3").monitored_remaining == 0
+
     banned = asyncio.run(
         guard.event_stream.command(
             "ban_ip",
@@ -189,6 +227,12 @@ def test_guard_startup_loads_persisted_operator_state(tmp_path):
             {"ip": "203.0.113.4"},
         )
     )
+    asyncio.run(
+        first.event_stream.command(
+            "monitor_identity",
+            {"identity": "u2", "requests": 9, "multiplier": 1.4},
+        )
+    )
 
     async def run():
         second = Guard()
@@ -198,6 +242,8 @@ def test_guard_startup_loads_persisted_operator_state(tmp_path):
         try:
             assert second.whitelist.allows("u1") is True
             assert second.whitelist.ip_blocked("203.0.113.4") is True
+            assert second._id_store.get("u2").monitored_remaining == 9
+            assert second._id_store.get("u2").monitored_multiplier == 1.4
         finally:
             await second.shutdown()
 

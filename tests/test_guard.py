@@ -54,6 +54,7 @@ runtime:
 
     first = Guard.from_config(cfg_path)
     first._id_store.bump("u1")
+    first._id_store.set_monitored("u1", requests=8, multiplier=1.4)
     first.checkpoint()
 
     guard = Guard.from_config(cfg_path)
@@ -62,6 +63,8 @@ runtime:
         await guard.startbgtasks()
         try:
             assert guard._id_store.get("u1").seen == 1
+            assert guard._id_store.get("u1").monitored_remaining == 8
+            assert guard._id_store.get("u1").monitored_multiplier == 1.4
             assert guard._bg_task is not None
         finally:
             await guard.shutdown()
